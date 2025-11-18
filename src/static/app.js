@@ -20,11 +20,37 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
+        // Create participants list HTML
+        let participantsHTML = "";
+        if (details.participants.length > 0) {
+          participantsHTML = `
+            <div class="participants-section">
+              <strong>Participants:</strong>
+              <ul class="participants-list">
+                ${details.participants
+                  .map(
+                    (participant) =>
+                      `<li><span class="participant-badge">${participant}</span></li>`
+                  )
+                  .join("")}
+              </ul>
+            </div>
+          `;
+        } else {
+          participantsHTML = `
+            <div class="participants-section">
+              <strong>Participants:</strong>
+              <span class="no-participants">No one signed up yet.</span>
+            </div>
+          `;
+        }
+
         activityCard.innerHTML = `
           <h4>${name}</h4>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          ${participantsHTML}
         `;
 
         activitiesList.appendChild(activityCard);
@@ -62,6 +88,8 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        // Re-fetch and re-render activities so the UI updates immediately
+        await fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
@@ -84,3 +112,60 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize app
   fetchActivities();
 });
+
+function renderActivities(activities) {
+  const activitiesList = document.getElementById('activities-list');
+  activitiesList.innerHTML = '';
+
+  activities.forEach(activity => {
+    const card = document.createElement('div');
+    card.className = 'activity-card';
+
+    let participantsHTML = '';
+    if (activity.participants && activity.participants.length > 0) {
+      participantsHTML = `<ul class="participants-list no-bullets">` +
+        activity.participants.map(p => `
+          <li class="participant-item">
+            <span class="participant-email">${p}</span>
+            <button class="delete-participant" title="Remove participant" data-activity="${activity.name}" data-email="${p}">✖</button>
+          </li>
+        `).join('') +
+        `</ul>`;
+    } else {
+      participantsHTML = `<p class="no-participants">No participants yet.</p>`;
+    }
+
+    card.innerHTML = `
+      <h4>${activity.name}</h4>
+      <p>${activity.description}</p>
+      <div class="participants-section">
+        <strong>Participants:</strong>
+        ${participantsHTML}
+      </div>
+    `;
+
+    activitiesList.appendChild(card);
+  });
+
+  // Add event listeners for delete buttons
+  document.querySelectorAll('.delete-participant').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      const activityName = this.getAttribute('data-activity');
+      const email = this.getAttribute('data-email');
+      unregisterParticipant(activityName, email);
+    });
+  });
+}
+
+// Unregister participant function
+function unregisterParticipant(activityName, email) {
+  // You should implement the backend call here. For now, we'll assume activities is global.
+  if (window.activities) {
+    const activity = window.activities.find(a => a.name === activityName);
+    if (activity) {
+      activity.participants = activity.participants.filter(p => p !== email);
+      renderActivities(window.activities);
+    }
+  }
+  // Optionally, show a message or handle errors
+}
